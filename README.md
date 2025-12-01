@@ -40,3 +40,4 @@ Open Firebase Console → Firestore Database → Collections → `users` → cli
 - LocalStorage is still used as a fallback and for quick access.
 - No credentials are included — you must supply your Firebase config.
 # mood
+# mood
