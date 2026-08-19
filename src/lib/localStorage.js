@@ -10,9 +10,9 @@ export function getAllMoodboards(){
   }
 }
 
-export function getMoodboard(dateStr){
-  const all = getAllMoodboards()
-  return all[dateStr] || null
+/** getMoodboard returns the full map (used by App.jsx for guest mode) */
+export function getMoodboard(){
+  return getAllMoodboards()
 }
 
 export function saveMoodboard(dateStr, data){
