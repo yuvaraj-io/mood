@@ -60,7 +60,6 @@ export default function EditPopup({ dateStr, existingData, onSubmit, onClose }) 
     setPasteInput(val)
     setPasteError('')
 
-    // Auto-detect if they pasted an emoji
     if (val.trim()) {
       const extracted = extractFirstEmoji(val.trim())
       if (extracted && isValidEmoji(extracted)) {
@@ -74,7 +73,7 @@ export default function EditPopup({ dateStr, existingData, onSubmit, onClose }) 
   function handleSubmit() {
     onSubmit(dateStr, {
       emoji: emoji,
-      mood: emoji, // backward compatible
+      mood: emoji,
       color: color,
       notes: notes,
     })
@@ -86,43 +85,43 @@ export default function EditPopup({ dateStr, existingData, onSubmit, onClose }) 
   }
 
   return (
-    <div className="modal-overlay" onClick={handleOverlayClick}>
+    <div className="modal-overlay p-2 sm:p-4" onClick={handleOverlayClick}>
       <div
         ref={modalRef}
-        className="modal-content w-full max-w-md mx-4 rounded-2xl shadow-2xl overflow-hidden"
+        className="modal-content w-full max-w-md mx-auto rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
         style={{ background: theme.surface, border: `1px solid ${theme.border}` }}
       >
         {/* Header */}
         <div
-          className="flex items-center justify-between px-5 py-4"
-          style={{ borderBottom: `1px solid ${theme.border}` }}
+          className="flex items-center justify-between px-3 sm:px-5 py-3 sm:py-4"
+          style={{ borderBottom: `1px solid ${theme.border}`, background: theme.headerBg }}
         >
           <div>
-            <h2 className="text-lg font-semibold" style={{ color: theme.text }}>
+            <h2 className="text-base sm:text-lg font-bold" style={{ color: theme.text }}>
               Edit Mood
             </h2>
-            <p className="text-xs" style={{ color: theme.textSecondary }}>{dateStr}</p>
+            <p className="text-[11px] sm:text-xs" style={{ color: theme.textSecondary }}>{dateStr}</p>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-full transition-colors duration-150"
+            className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-full transition-colors duration-150"
             style={{ color: theme.textSecondary }}
             onMouseEnter={e => { e.currentTarget.style.background = theme.hover }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
         {/* Body */}
-        <div className="px-5 py-4 space-y-5 max-h-[70vh] overflow-y-auto">
+        <div className="px-3 sm:px-5 py-3 sm:py-4 space-y-4 sm:space-y-5 overflow-y-auto flex-1">
           {/* Selected emoji preview */}
           {emoji && (
             <div className="flex items-center justify-center">
               <div
-                className="w-20 h-20 flex items-center justify-center rounded-2xl text-5xl"
+                className="w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center rounded-2xl text-4xl sm:text-5xl"
                 style={{ background: theme.hover, border: `2px solid ${theme.border}` }}
               >
                 {emoji}
@@ -132,18 +131,18 @@ export default function EditPopup({ dateStr, existingData, onSubmit, onClose }) 
 
           {/* Emoji Grid */}
           <div>
-            <div className="text-sm font-medium mb-2" style={{ color: theme.textSecondary }}>
+            <div className="text-xs sm:text-sm font-semibold mb-1.5" style={{ color: theme.textSecondary }}>
               Choose an Emoji
             </div>
-            <div className="grid grid-cols-8 gap-1.5">
+            <div className="grid grid-cols-7 xs:grid-cols-8 gap-1 sm:gap-1.5">
               {BASIC_EMOJIS.map((e, i) => (
                 <button
                   key={i}
                   onClick={() => setEmoji(e)}
-                  className="w-9 h-9 flex items-center justify-center text-xl rounded-lg transition-all duration-100 hover:scale-125 active:scale-95"
+                  className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center text-lg sm:text-xl rounded-lg transition-all duration-100 hover:scale-110 active:scale-95"
                   style={{
                     background: emoji === e ? theme.hover : 'transparent',
-                    border: emoji === e ? `2px solid ${theme.primary}` : '2px solid transparent',
+                    border: emoji === e ? `2px solid ${theme.primary}` : '1.5px solid transparent',
                   }}
                 >
                   {e}
@@ -154,16 +153,16 @@ export default function EditPopup({ dateStr, existingData, onSubmit, onClose }) 
 
           {/* Paste Emoji */}
           <div>
-            <div className="text-sm font-medium mb-2" style={{ color: theme.textSecondary }}>
+            <div className="text-xs sm:text-sm font-semibold mb-1.5" style={{ color: theme.textSecondary }}>
               Or Paste an Emoji
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-1.5 sm:gap-2">
               <input
                 type="text"
                 value={pasteInput}
                 onChange={handlePasteInputChange}
                 placeholder="Paste emoji here..."
-                className="flex-1 px-3 py-2 rounded-lg text-sm outline-none transition-all"
+                className="flex-1 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm outline-none transition-all"
                 style={{
                   background: theme.bg,
                   color: theme.text,
@@ -174,7 +173,7 @@ export default function EditPopup({ dateStr, existingData, onSubmit, onClose }) 
               />
               <button
                 onClick={handlePasteEmoji}
-                className="px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150"
+                className="px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-150"
                 style={{
                   background: theme.hover,
                   color: theme.primary,
@@ -185,7 +184,7 @@ export default function EditPopup({ dateStr, existingData, onSubmit, onClose }) 
               </button>
             </div>
             {pasteError && (
-              <p className="text-xs mt-1 text-red-500">{pasteError}</p>
+              <p className="text-[10px] sm:text-xs mt-1 text-red-500">{pasteError}</p>
             )}
           </div>
 
@@ -194,16 +193,16 @@ export default function EditPopup({ dateStr, existingData, onSubmit, onClose }) 
 
           {/* Notes / Description */}
           <div>
-            <div className="text-sm font-medium mb-2" style={{ color: theme.textSecondary }}>
+            <div className="text-xs sm:text-sm font-semibold mb-1.5" style={{ color: theme.textSecondary }}>
               Description (optional)
             </div>
             <textarea
               value={notes}
               onChange={e => setNotes(e.target.value)}
-              rows={4}
+              rows={3}
               maxLength={500}
               placeholder="How are you feeling today? Write a note..."
-              className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all resize-none"
+              className="w-full px-2.5 sm:px-3 py-2 rounded-lg text-xs sm:text-sm outline-none transition-all resize-none"
               style={{
                 background: theme.bg,
                 color: theme.text,
@@ -212,7 +211,7 @@ export default function EditPopup({ dateStr, existingData, onSubmit, onClose }) 
               onFocus={e => { e.target.style.borderColor = theme.primary }}
               onBlur={e => { e.target.style.borderColor = theme.border }}
             />
-            <div className="text-xs mt-1" style={{ color: theme.textSecondary }}>
+            <div className="text-[10px] sm:text-xs mt-1 text-right" style={{ color: theme.textSecondary }}>
               {notes.length}/500
             </div>
           </div>
@@ -220,24 +219,23 @@ export default function EditPopup({ dateStr, existingData, onSubmit, onClose }) 
 
         {/* Footer */}
         <div
-          className="flex items-center justify-end gap-3 px-5 py-4"
-          style={{ borderTop: `1px solid ${theme.border}` }}
+          className="flex items-center justify-end gap-2 px-3 sm:px-5 py-2.5 sm:py-3"
+          style={{ borderTop: `1px solid ${theme.border}`, background: theme.headerBg }}
         >
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150"
+            className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold transition-all duration-150"
             style={{
               color: theme.textSecondary,
               border: `1px solid ${theme.border}`,
+              background: theme.surface,
             }}
-            onMouseEnter={e => { e.currentTarget.style.background = theme.hover }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
           >
             Cancel
           </button>
           <button
             onClick={handleSubmit}
-            className="px-5 py-2 rounded-lg text-sm font-medium text-white transition-all duration-150 hover:shadow-md active:scale-[0.98]"
+            className="px-4 sm:px-5 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold text-white transition-all duration-150 hover:shadow-md active:scale-[0.98]"
             style={{ background: theme.primary }}
           >
             Submit

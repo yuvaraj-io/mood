@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import Calendar from './components/Calendar'
 import EditPopup from './components/EditPopup'
 import SignInPage from './components/SignInPage'
 import ThemeSelector from './components/ThemeSelector'
+import AnalyticsModal from './components/AnalyticsModal'
+import DayDetailModal from './components/DayDetailModal'
 import { ThemeProvider, useTheme } from './lib/ThemeContext'
 import { auth, provider, db } from './lib/firebase'
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth'
@@ -18,14 +20,15 @@ function AppInner() {
   const [moods, setMoods] = useState({})
   const [viewDate, setViewDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
   const [selectedDate, setSelectedDate] = useState(formatDate(today))
-  const [editingDate, setEditingDate] = useState(null) // date string for popup
+  const [editingDate, setEditingDate] = useState(null)
+  const [detailDate, setDetailDate] = useState(null)
+  const [showAnalytics, setShowAnalytics] = useState(false)
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (u) {
         setUser(u)
         setGuestMode(false)
-        // Load user doc from Firestore
         const ref = doc(db, 'users', u.uid)
         try {
           const snap = await getDoc(ref)
@@ -42,7 +45,6 @@ function AppInner() {
         }
       } else {
         setUser(null)
-        // Don't auto-set guest mode here; let the sign-in page handle it
         if (guestMode) {
           setMoods(getLocal())
         }
@@ -52,12 +54,37 @@ function AppInner() {
     return () => unsub()
   }, [])
 
-  // Load local data when entering guest mode
   useEffect(() => {
     if (guestMode && !user) {
       setMoods(getLocal())
     }
   }, [guestMode])
+
+  const currentStreak = useMemo(() => {
+    let streakCount = 0
+    let checkDate = new Date(today)
+
+    while (true) {
+      const dateStr = formatDate(checkDate)
+      const entry = moods[dateStr]
+      if (entry && (entry.emoji || entry.mood || entry.color || entry.notes)) {
+        streakCount++
+        checkDate.setDate(checkDate.getDate() - 1)
+      } else {
+        if (streakCount === 0 && dateStr === formatDate(today)) {
+          checkDate.setDate(checkDate.getDate() - 1)
+          const yDateStr = formatDate(checkDate)
+          if (moods[yDateStr]) {
+            streakCount++
+            checkDate.setDate(checkDate.getDate() - 1)
+            continue
+          }
+        }
+        break
+      }
+    }
+    return streakCount
+  }, [moods])
 
   async function handleLogin() {
     try {
@@ -104,7 +131,10 @@ function AppInner() {
     setEditingDate(dateStr)
   }
 
-  // Show sign-in page if not authenticated and not in guest mode
+  function onViewDayDetail(dateStr) {
+    setDetailDate(dateStr)
+  }
+
   if (authLoading || (!user && !guestMode)) {
     return (
       <SignInPage
@@ -116,8 +146,8 @@ function AppInner() {
   }
 
   return (
-    <div className="min-h-screen transition-colors duration-300" style={{ background: theme.bg }}>
-      {/* Header */}
+    <div className="min-h-screen transition-colors duration-300 pb-8 sm:pb-12" style={{ background: theme.bg }}>
+      {/* Header — Fully optimized for 320px to 475px mobile screens */}
       <header
         className="sticky top-0 z-30 backdrop-blur-md"
         style={{
@@ -125,55 +155,76 @@ function AppInner() {
           borderBottom: `1px solid ${theme.border}`,
         }}
       >
-        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {/* Small logo */}
-            <div className="w-8 h-8 flex items-center justify-center rounded-lg" style={{ background: theme.primary }}>
-              <span className="text-white text-sm">😊</span>
+        <div className="max-w-4xl mx-auto px-2.5 sm:px-4 py-2 sm:py-3 flex items-center justify-between gap-1.5 sm:gap-3">
+          {/* Logo & Title */}
+          <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0">
+            <div
+              className="w-7 h-7 sm:w-9 sm:h-9 flex-shrink-0 flex items-center justify-center rounded-lg sm:rounded-xl shadow-sm"
+              style={{ background: theme.primary }}
+            >
+              <span className="text-white text-xs sm:text-base">😊</span>
             </div>
-            <h1 className="text-lg font-semibold" style={{ color: theme.text }}>
-              Mood Calendar
-            </h1>
+            <div className="min-w-0">
+              <h1 className="text-xs xs:text-sm sm:text-base md:text-lg font-bold leading-tight truncate" style={{ color: theme.text }}>
+                Mood Calendar
+              </h1>
+              {currentStreak > 0 && (
+                <div className="flex items-center gap-0.5 text-[9px] sm:text-[11px] font-semibold truncate" style={{ color: theme.primary }}>
+                  <span>🔥</span> {currentStreak}d streak
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Action buttons */}
+          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+            {/* Insights / Charts Button */}
+            <button
+              onClick={() => setShowAnalytics(true)}
+              className="flex items-center gap-1 px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-sm font-semibold transition-all duration-150 shadow-sm hover:scale-105 active:scale-95"
+              style={{
+                background: theme.surface,
+                color: theme.text,
+                border: `1px solid ${theme.border}`,
+              }}
+              title="View Mood Analytics & Charts"
+            >
+              <span className="text-xs sm:text-sm">📊</span>
+              <span className="hidden xs:inline">Stats</span>
+            </button>
+
+            {/* Theme Selector */}
             <ThemeSelector />
 
+            {/* User Profile / Logout */}
             {user ? (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 sm:gap-2">
                 <div
-                  className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs"
+                  className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs"
                   style={{ background: theme.hover, color: theme.textSecondary }}
                 >
                   {user.photoURL && (
-                    <img src={user.photoURL} alt="" className="w-5 h-5 rounded-full" />
+                    <img src={user.photoURL} alt="" className="w-4 h-4 rounded-full" />
                   )}
-                  <span className="max-w-[120px] truncate">{user.email}</span>
+                  <span className="max-w-[100px] truncate">{user.email}</span>
                 </div>
                 <button
                   onClick={handleLogout}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150"
+                  className="px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-semibold transition-all duration-150 hover:opacity-80"
                   style={{
                     color: theme.textSecondary,
                     border: `1px solid ${theme.border}`,
+                    background: theme.surface,
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.background = theme.hover }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
                 >
                   Logout
                 </button>
               </div>
             ) : (
-              <div className="flex items-center gap-2">
-                <span
-                  className="px-2 py-1 rounded-md text-xs font-medium"
-                  style={{ background: theme.hover, color: theme.textSecondary }}
-                >
-                  Guest
-                </span>
+              <div className="flex items-center gap-1 sm:gap-1.5">
                 <button
                   onClick={handleLogin}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150"
+                  className="px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-semibold transition-all duration-150 shadow-sm"
                   style={{
                     background: theme.primary,
                     color: '#FFFFFF',
@@ -183,15 +234,15 @@ function AppInner() {
                 </button>
                 <button
                   onClick={handleLogout}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150"
+                  className="px-1.5 py-1 sm:px-2.5 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-semibold transition-all duration-150 hover:opacity-80"
                   style={{
                     color: theme.textSecondary,
                     border: `1px solid ${theme.border}`,
+                    background: theme.surface,
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.background = theme.hover }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                  title="Logout"
                 >
-                  Logout
+                  Exit
                 </button>
               </div>
             )}
@@ -199,8 +250,8 @@ function AppInner() {
         </div>
       </header>
 
-      {/* Main — Calendar only */}
-      <main className="max-w-2xl mx-auto px-4 py-6">
+      {/* Main — Responsive Calendar Container */}
+      <main className="max-w-4xl mx-auto px-2 sm:px-4 py-3 sm:py-6">
         <Calendar
           viewDate={viewDate}
           onChangeViewDate={setViewDate}
@@ -208,14 +259,15 @@ function AppInner() {
           selectedDate={selectedDate}
           moodboards={moods}
           onEditDate={onEditDate}
+          onViewDayDetail={onViewDayDetail}
         />
 
-        {/* Sync status */}
-        <div className="mt-4 text-center">
-          <p className="text-xs" style={{ color: theme.textSecondary }}>
+        {/* Sync status footer */}
+        <div className="mt-4 text-center px-2">
+          <p className="text-[10px] sm:text-xs" style={{ color: theme.textSecondary }}>
             {user
-              ? '✓ Synced to your Google account'
-              : '💾 Data saved locally on this device'}
+              ? '✓ Synced to your Google account cloud storage'
+              : '💾 Guest mode: entries are saved locally on this device'}
           </p>
         </div>
       </main>
@@ -227,6 +279,28 @@ function AppInner() {
           existingData={moods?.[editingDate] ?? {}}
           onSubmit={onSave}
           onClose={() => setEditingDate(null)}
+        />
+      )}
+
+      {/* Day Detail View Modal */}
+      {detailDate && (
+        <DayDetailModal
+          dateStr={detailDate}
+          data={moods?.[detailDate] ?? {}}
+          onEdit={(d) => {
+            setDetailDate(null)
+            setEditingDate(d)
+          }}
+          onClose={() => setDetailDate(null)}
+        />
+      )}
+
+      {/* Analytics / Charts Modal */}
+      {showAnalytics && (
+        <AnalyticsModal
+          moodboards={moods}
+          viewDate={viewDate}
+          onClose={() => setShowAnalytics(false)}
         />
       )}
     </div>

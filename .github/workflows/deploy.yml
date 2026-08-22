@@ -1,0 +1,51 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches:
+      - master
+      - main
+  workflow_dispatch:
+
+jobs:
+  # 1. Trigger VPS Webhook (if VPS_WEBHOOK_URL is set in repo secrets)
+  trigger_vps_webhook:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🌐 Trigger VPS Webhook
+        if: "${{ secrets.VPS_WEBHOOK_URL != '' }}"
+        run: |
+          echo "Triggering VPS Webhook..."
+          curl -X POST "${{ secrets.VPS_WEBHOOK_URL }}" \
+            -H "X-Deploy-Token: ${{ secrets.VPS_WEBHOOK_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -d '{"ref": "${{ github.ref }}", "commit": "${{ github.sha }}"}' \
+            --fail || echo "⚠️ VPS webhook trigger warning"
+
+  # 2. Build & Deploy to Firebase Hosting (if Firebase secret is set)
+  deploy_firebase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⬇️ Checkout repository
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🏗️ Build project
+        run: npm run build
+
+      - name: 🚀 Deploy to Firebase Hosting
+        if: "${{ secrets.FIREBASE_SERVICE_ACCOUNT_FRIENDS_A5F47 != '' }}"
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_FRIENDS_A5F47 }}'
+          channelId: live
+          projectId: friends-a5f47
