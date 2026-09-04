@@ -21,7 +21,8 @@ export default function AnalyticsModal({ moodboards = {}, viewDate, onClose }) {
   const filteredEntries = useMemo(() => {
     return Object.entries(moodboards).filter(([dateKey, data]) => {
       if (!data) return false
-      if (!data.emoji && !data.mood && !data.color) return false
+      const hasTodos = Array.isArray(data.todos) && data.todos.length > 0
+      if (!data.emoji && !data.mood && !data.color && !data.notes && !hasTodos) return false
 
       if (filterScope === 'month') {
         return dateKey.startsWith(monthPrefix)
@@ -31,6 +32,31 @@ export default function AnalyticsModal({ moodboards = {}, viewDate, onClose }) {
       return true
     })
   }, [moodboards, filterScope, monthPrefix, yearPrefix])
+
+  const todoStats = useMemo(() => {
+    let total = 0
+    let completed = 0
+    let daysWithTodos = 0
+
+    filteredEntries.forEach(([, data]) => {
+      if (Array.isArray(data.todos) && data.todos.length > 0) {
+        daysWithTodos++
+        data.todos.forEach(t => {
+          total++
+          if (t.completed) completed++
+        })
+      }
+    })
+
+    const percent = total > 0 ? Math.round((completed / total) * 100) : 0
+    return {
+      total,
+      completed,
+      pending: total - completed,
+      daysWithTodos,
+      percent,
+    }
+  }, [filteredEntries])
 
   const emojiStats = useMemo(() => {
     const counts = {}
@@ -262,6 +288,73 @@ export default function AnalyticsModal({ moodboards = {}, viewDate, onClose }) {
               </div>
               <div className="text-[9px] sm:text-xs mt-0.5 truncate" style={{ color: theme.textSecondary }}>
                 {emojiStats.topMood ? `Top (${emojiStats.topMood.percent}%)` : 'Top Mood'}
+              </div>
+            </div>
+          </div>
+
+          {/* Daily Plans & Task Execution Tracker */}
+          <div
+            className="p-3 sm:p-4 rounded-xl sm:rounded-2xl"
+            style={{ background: theme.bg, border: `1px solid ${theme.border}` }}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-1.5">
+                <span className="text-base sm:text-lg">🎯</span>
+                <div>
+                  <h3 className="text-xs sm:text-sm font-bold" style={{ color: theme.text }}>
+                    Task Execution & Planning
+                  </h3>
+                  <p className="text-[10px] sm:text-[11px]" style={{ color: theme.textSecondary }}>
+                    {todoStats.daysWithTodos} active planning days
+                  </p>
+                </div>
+              </div>
+              <span
+                className="text-xs sm:text-sm font-bold px-2 py-0.5 rounded-full"
+                style={{
+                  background: todoStats.percent === 100 && todoStats.total > 0 ? '#10B98125' : theme.hover,
+                  color: todoStats.percent === 100 && todoStats.total > 0 ? '#10B981' : theme.primary,
+                }}
+              >
+                {todoStats.percent}% rate
+              </span>
+            </div>
+
+            {/* Progress bar */}
+            <div className="w-full bg-black/10 dark:bg-white/10 rounded-full h-2 overflow-hidden mb-2.5">
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${todoStats.percent}%`,
+                  background: todoStats.percent === 100 && todoStats.total > 0 ? '#10B981' : theme.primary,
+                }}
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 text-center pt-1 border-t" style={{ borderColor: theme.border }}>
+              <div>
+                <div className="text-xs sm:text-sm font-bold" style={{ color: theme.text }}>
+                  {todoStats.total}
+                </div>
+                <div className="text-[9px] sm:text-[10px]" style={{ color: theme.textSecondary }}>
+                  Tasks Planned
+                </div>
+              </div>
+              <div>
+                <div className="text-xs sm:text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                  {todoStats.completed}
+                </div>
+                <div className="text-[9px] sm:text-[10px]" style={{ color: theme.textSecondary }}>
+                  Completed
+                </div>
+              </div>
+              <div>
+                <div className="text-xs sm:text-sm font-bold text-amber-600 dark:text-amber-400">
+                  {todoStats.pending}
+                </div>
+                <div className="text-[9px] sm:text-[10px]" style={{ color: theme.textSecondary }}>
+                  Pending
+                </div>
               </div>
             </div>
           </div>

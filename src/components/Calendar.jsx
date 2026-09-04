@@ -264,11 +264,16 @@ export default function Calendar({
 
             const key = getDateStr(d)
             const data = moodboards?.[key]
-            const disabled = isFuture(d)
+            const isFutureDate = isFuture(d)
             const isSelected = key === selectedDate
             const isToday = key === todayStr
             const displayEmoji = getDisplayEmoji(data)
             const hasNotes = Boolean(data?.notes && data.notes.trim())
+            const todos = Array.isArray(data?.todos) ? data.todos : []
+            const hasTodos = todos.length > 0
+            const completedTodos = todos.filter(t => t.completed).length
+            const allTodosDone = hasTodos && completedTodos === todos.length
+            const hasData = Boolean(data && (data.emoji || data.mood || data.notes || data.color || hasTodos))
 
             const matchesFilter = selectedEmojiFilter === null || displayEmoji === selectedEmojiFilter
             const isDimmed = selectedEmojiFilter !== null && !matchesFilter
@@ -276,13 +281,12 @@ export default function Calendar({
             return (
               <div
                 key={key}
-                className={`relative min-h-[54px] xs:min-h-[64px] sm:min-h-[80px] md:min-h-[96px] rounded-xl sm:rounded-2xl flex flex-col items-center justify-between p-1 sm:p-2 transition-all duration-200 group
-                  ${disabled ? 'opacity-35 cursor-not-allowed' : 'cursor-pointer hover:shadow-md hover:-translate-y-0.5'}
+                className={`relative min-h-[54px] xs:min-h-[64px] sm:min-h-[80px] md:min-h-[96px] rounded-xl sm:rounded-2xl flex flex-col items-center justify-between p-1 sm:p-2 transition-all duration-200 group cursor-pointer hover:shadow-md hover:-translate-y-0.5
+                  ${isFutureDate && !hasData ? 'opacity-85' : ''}
                   ${isDimmed ? 'opacity-20 grayscale' : ''}`}
                 onClick={() => {
-                  if (disabled) return
                   onSelectDate(key)
-                  if (data && (data.emoji || data.mood || data.notes || data.color)) {
+                  if (hasData) {
                     onViewDayDetail(key, data)
                   } else {
                     onEditDate(key)
@@ -298,7 +302,9 @@ export default function Calendar({
                     ? `2px sm:2.5px solid ${theme.primary}`
                     : isSelected
                       ? `2px solid ${theme.accent}`
-                      : `1px sm:1.5px solid ${theme.calendarCellBorder}`,
+                      : isFutureDate && !hasData
+                        ? `1px sm:1.5px dashed ${theme.calendarCellBorder}`
+                        : `1px sm:1.5px solid ${theme.calendarCellBorder}`,
                   boxShadow: isSelected ? `0 0 0 2px sm:3px ${theme.primary}25` : 'none',
                 }}
               >
@@ -306,7 +312,7 @@ export default function Calendar({
                 <div className="w-full flex items-center justify-between pointer-events-none px-0.5">
                   <span
                     className={`text-[9px] xs:text-[11px] sm:text-xs md:text-sm font-semibold ${isToday ? 'font-bold' : ''}`}
-                    style={{ color: isToday ? theme.primary : theme.text }}
+                    style={{ color: isToday ? theme.primary : isFutureDate && !hasData ? theme.textSecondary : theme.text }}
                   >
                     {d.getDate()}
                   </span>
@@ -315,15 +321,15 @@ export default function Calendar({
                   {hasNotes && (
                     <span
                       className="text-[8px] sm:text-[10px] opacity-80"
-                      title="Has written note"
+                      title="Has written note / plan"
                     >
                       📝
                     </span>
                   )}
                 </div>
 
-                {/* Center: Emoji or Color Dot */}
-                <div className="flex-1 flex items-center justify-center my-0.5 pointer-events-none">
+                {/* Center: Emoji, Color Dot, or Plan Prompt + Todo Badge */}
+                <div className="flex-1 flex flex-col items-center justify-center my-0.5 pointer-events-none">
                   {displayEmoji ? (
                     <span className="text-base xs:text-xl sm:text-2xl md:text-3xl leading-none transition-transform group-hover:scale-110">
                       {displayEmoji}
@@ -333,12 +339,39 @@ export default function Calendar({
                       className="w-2.5 h-2.5 sm:w-4 sm:h-4 rounded-full border border-black/15 shadow-sm"
                       style={{ background: data.color }}
                     />
+                  ) : isFutureDate && !hasTodos ? (
+                    <span
+                      className="text-[9px] xs:text-[10px] sm:text-xs opacity-40 group-hover:opacity-100 font-medium transition-opacity flex items-center gap-0.5"
+                      style={{ color: theme.primary }}
+                    >
+                      <span>+</span>
+                      <span className="hidden xs:inline">Plan</span>
+                    </span>
                   ) : null}
+
+                  {/* Todo List Tracker Badge */}
+                  {hasTodos && (
+                    <div
+                      className={`mt-0.5 sm:mt-1 px-1 sm:px-1.5 py-0.2 sm:py-0.5 rounded-full text-[7px] xs:text-[8px] sm:text-[9px] font-bold flex items-center gap-0.5 leading-none transition-all ${
+                        allTodosDone
+                          ? 'bg-emerald-500 text-white shadow-xs'
+                          : completedTodos > 0
+                            ? 'bg-amber-500 text-white shadow-xs'
+                            : isFutureDate
+                              ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30'
+                              : 'bg-black/10 dark:bg-white/15 text-current'
+                      }`}
+                      title={`${completedTodos}/${todos.length} tasks completed`}
+                    >
+                      <span>{allTodosDone ? '✓' : isFutureDate ? '🎯' : '•'}</span>
+                      <span>{completedTodos}/{todos.length}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Bottom row: Color Accent Indicator */}
                 <div className="w-full flex items-center justify-center h-0.5 sm:h-1 pointer-events-none">
-                  {data?.color && displayEmoji && (
+                  {data?.color && (displayEmoji || hasTodos) && (
                     <span
                       className="w-2.5 sm:w-4 h-0.5 sm:h-1 rounded-full opacity-80"
                       style={{ background: data.color }}
@@ -346,27 +379,25 @@ export default function Calendar({
                   )}
                 </div>
 
-                {/* Edit Button — compact size on 320px-475px mobile screens */}
-                {!disabled && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onEditDate(key)
-                    }}
-                    className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 flex items-center justify-center rounded-md sm:rounded-lg shadow-sm
-                      opacity-90 sm:opacity-100 md:opacity-0 md:group-hover:opacity-100
-                      transition-all duration-150 hover:scale-110"
-                    style={{
-                      background: theme.primary,
-                      color: '#FFFFFF',
-                    }}
-                    title="Edit mood & note"
-                  >
-                    <svg className="w-2 h-2 sm:w-2.5 sm:h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                    </svg>
-                  </button>
-                )}
+                {/* Edit / Plan Button */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onEditDate(key)
+                  }}
+                  className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 flex items-center justify-center rounded-md sm:rounded-lg shadow-sm
+                    opacity-80 sm:opacity-90 md:opacity-0 md:group-hover:opacity-100
+                    transition-all duration-150 hover:scale-110"
+                  style={{
+                    background: theme.primary,
+                    color: '#FFFFFF',
+                  }}
+                  title={isFutureDate ? "Plan for this day" : "Edit mood & tasks"}
+                >
+                  <svg className="w-2 h-2 sm:w-2.5 sm:h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                </button>
               </div>
             )
           })

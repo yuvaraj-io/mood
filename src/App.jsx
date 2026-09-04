@@ -64,17 +64,28 @@ function AppInner() {
     let streakCount = 0
     let checkDate = new Date(today)
 
+    const hasDayActivity = (entry) => {
+      if (!entry) return false
+      return Boolean(
+        entry.emoji ||
+        entry.mood ||
+        entry.color ||
+        entry.notes ||
+        (Array.isArray(entry.todos) && entry.todos.length > 0)
+      )
+    }
+
     while (true) {
       const dateStr = formatDate(checkDate)
       const entry = moods[dateStr]
-      if (entry && (entry.emoji || entry.mood || entry.color || entry.notes)) {
+      if (hasDayActivity(entry)) {
         streakCount++
         checkDate.setDate(checkDate.getDate() - 1)
       } else {
         if (streakCount === 0 && dateStr === formatDate(today)) {
           checkDate.setDate(checkDate.getDate() - 1)
           const yDateStr = formatDate(checkDate)
-          if (moods[yDateStr]) {
+          if (hasDayActivity(moods[yDateStr])) {
             streakCount++
             checkDate.setDate(checkDate.getDate() - 1)
             continue
@@ -121,6 +132,12 @@ function AppInner() {
         await setDoc(ref, { moods: updated }, { merge: true })
       }
     }
+  }
+
+  async function onUpdateTodos(dateStr, updatedTodos) {
+    const existing = moods[dateStr] || {}
+    const updatedData = { ...existing, todos: updatedTodos }
+    await onSave(dateStr, updatedData)
   }
 
   function onSelectDate(d) {
@@ -287,6 +304,7 @@ function AppInner() {
         <DayDetailModal
           dateStr={detailDate}
           data={moods?.[detailDate] ?? {}}
+          onUpdateTodos={onUpdateTodos}
           onEdit={(d) => {
             setDetailDate(null)
             setEditingDate(d)

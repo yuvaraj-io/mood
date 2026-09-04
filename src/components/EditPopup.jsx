@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
 import ColorPicker from './ColorPicker'
+import TodoList from './TodoList'
 import { isValidEmoji, extractFirstEmoji } from '../lib/emojiUtils'
+import { isDateInFuture } from '../lib/todoUtils'
 import { useTheme } from '../lib/ThemeContext'
 
 const BASIC_EMOJIS = [
@@ -15,9 +17,12 @@ const BASIC_EMOJIS = [
 
 export default function EditPopup({ dateStr, existingData, onSubmit, onClose }) {
   const { theme } = useTheme()
+  const isFuture = isDateInFuture(dateStr)
+
   const [emoji, setEmoji] = useState('')
   const [color, setColor] = useState('#FFD54F')
   const [notes, setNotes] = useState('')
+  const [todos, setTodos] = useState([])
   const [pasteInput, setPasteInput] = useState('')
   const [pasteError, setPasteError] = useState('')
   const modalRef = useRef(null)
@@ -27,6 +32,7 @@ export default function EditPopup({ dateStr, existingData, onSubmit, onClose }) 
       setEmoji(existingData.emoji || existingData.mood || '')
       setColor(existingData.color || '#FFD54F')
       setNotes(existingData.notes || '')
+      setTodos(Array.isArray(existingData.todos) ? existingData.todos : [])
     }
   }, [existingData])
 
@@ -76,6 +82,7 @@ export default function EditPopup({ dateStr, existingData, onSubmit, onClose }) 
       mood: emoji,
       color: color,
       notes: notes,
+      todos: todos,
     })
     onClose()
   }
@@ -88,7 +95,7 @@ export default function EditPopup({ dateStr, existingData, onSubmit, onClose }) 
     <div className="modal-overlay p-2 sm:p-4" onClick={handleOverlayClick}>
       <div
         ref={modalRef}
-        className="modal-content w-full max-w-md mx-auto rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+        className="modal-content w-full max-w-lg mx-auto rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
         style={{ background: theme.surface, border: `1px solid ${theme.border}` }}
       >
         {/* Header */}
@@ -96,11 +103,16 @@ export default function EditPopup({ dateStr, existingData, onSubmit, onClose }) 
           className="flex items-center justify-between px-3 sm:px-5 py-3 sm:py-4"
           style={{ borderBottom: `1px solid ${theme.border}`, background: theme.headerBg }}
         >
-          <div>
-            <h2 className="text-base sm:text-lg font-bold" style={{ color: theme.text }}>
-              Edit Mood
-            </h2>
-            <p className="text-[11px] sm:text-xs" style={{ color: theme.textSecondary }}>{dateStr}</p>
+          <div className="flex items-center gap-2">
+            <span className="text-xl sm:text-2xl">{isFuture ? '🎯' : '📝'}</span>
+            <div>
+              <h2 className="text-base sm:text-lg font-bold" style={{ color: theme.text }}>
+                {isFuture ? 'Plan Ahead' : 'Edit Day & Mood'}
+              </h2>
+              <p className="text-[11px] sm:text-xs font-medium" style={{ color: theme.textSecondary }}>
+                {isFuture ? `Planning for ${dateStr}` : dateStr}
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
@@ -117,27 +129,48 @@ export default function EditPopup({ dateStr, existingData, onSubmit, onClose }) 
 
         {/* Body */}
         <div className="px-3 sm:px-5 py-3 sm:py-4 space-y-4 sm:space-y-5 overflow-y-auto flex-1">
-          {/* Selected emoji preview */}
+          {/* Section: Todo List Tracker / Future Plans (Featured at top for future dates) */}
+          <div
+            className="p-3 sm:p-4 rounded-xl sm:rounded-2xl"
+            style={{ background: `${theme.hover}50`, border: `1px solid ${theme.border}` }}
+          >
+            <TodoList
+              todos={todos}
+              onChange={setTodos}
+              isFuture={isFuture}
+              title={isFuture ? 'Tasks & Goals Planned for This Day' : 'Day Todo List Tracker'}
+            />
+          </div>
+
+          {/* Selected emoji preview if set */}
           {emoji && (
-            <div className="flex items-center justify-center">
+            <div className="flex items-center justify-center gap-2">
               <div
-                className="w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center rounded-2xl text-4xl sm:text-5xl"
+                className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center rounded-2xl text-3xl sm:text-4xl"
                 style={{ background: theme.hover, border: `2px solid ${theme.border}` }}
               >
                 {emoji}
               </div>
+              <button
+                type="button"
+                onClick={() => setEmoji('')}
+                className="text-[10px] sm:text-xs text-red-500 hover:underline"
+              >
+                Remove
+              </button>
             </div>
           )}
 
-          {/* Emoji Grid */}
+          {/* Emoji Grid (Optional for future dates, main for today/past) */}
           <div>
-            <div className="text-xs sm:text-sm font-semibold mb-1.5" style={{ color: theme.textSecondary }}>
-              Choose an Emoji
+            <div className="text-xs sm:text-sm font-semibold mb-1.5 flex items-center justify-between" style={{ color: theme.textSecondary }}>
+              <span>{isFuture ? 'Anticipated / Target Mood (optional)' : 'Choose an Emoji'}</span>
             </div>
             <div className="grid grid-cols-7 xs:grid-cols-8 gap-1 sm:gap-1.5">
               {BASIC_EMOJIS.map((e, i) => (
                 <button
                   key={i}
+                  type="button"
                   onClick={() => setEmoji(e)}
                   className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center text-lg sm:text-xl rounded-lg transition-all duration-100 hover:scale-110 active:scale-95"
                   style={{
@@ -154,7 +187,7 @@ export default function EditPopup({ dateStr, existingData, onSubmit, onClose }) 
           {/* Paste Emoji */}
           <div>
             <div className="text-xs sm:text-sm font-semibold mb-1.5" style={{ color: theme.textSecondary }}>
-              Or Paste an Emoji
+              Or Paste Any Emoji
             </div>
             <div className="flex gap-1.5 sm:gap-2">
               <input
@@ -172,6 +205,7 @@ export default function EditPopup({ dateStr, existingData, onSubmit, onClose }) 
                 onBlur={e => { e.target.style.borderColor = pasteError ? '#EF4444' : theme.border }}
               />
               <button
+                type="button"
                 onClick={handlePasteEmoji}
                 className="px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-150"
                 style={{
@@ -191,17 +225,17 @@ export default function EditPopup({ dateStr, existingData, onSubmit, onClose }) 
           {/* Color Picker */}
           <ColorPicker value={color} onChange={setColor} disabled={false} />
 
-          {/* Notes / Description */}
+          {/* Notes / Planning Description */}
           <div>
             <div className="text-xs sm:text-sm font-semibold mb-1.5" style={{ color: theme.textSecondary }}>
-              Description (optional)
+              {isFuture ? 'Planning Notes & Objectives (optional)' : 'Description / Journal (optional)'}
             </div>
             <textarea
               value={notes}
               onChange={e => setNotes(e.target.value)}
               rows={3}
               maxLength={500}
-              placeholder="How are you feeling today? Write a note..."
+              placeholder={isFuture ? "What is your main focus or plan for this day? Write notes..." : "How are you feeling today? Write a note..."}
               className="w-full px-2.5 sm:px-3 py-2 rounded-lg text-xs sm:text-sm outline-none transition-all resize-none"
               style={{
                 background: theme.bg,
@@ -223,6 +257,7 @@ export default function EditPopup({ dateStr, existingData, onSubmit, onClose }) 
           style={{ borderTop: `1px solid ${theme.border}`, background: theme.headerBg }}
         >
           <button
+            type="button"
             onClick={onClose}
             className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold transition-all duration-150"
             style={{
@@ -234,11 +269,12 @@ export default function EditPopup({ dateStr, existingData, onSubmit, onClose }) 
             Cancel
           </button>
           <button
+            type="button"
             onClick={handleSubmit}
             className="px-4 sm:px-5 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold text-white transition-all duration-150 hover:shadow-md active:scale-[0.98]"
             style={{ background: theme.primary }}
           >
-            Submit
+            {isFuture ? 'Save Plans' : 'Submit'}
           </button>
         </div>
       </div>
